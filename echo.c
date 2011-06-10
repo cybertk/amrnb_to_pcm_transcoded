@@ -36,20 +36,17 @@
 
 #include "log.h"
 #include "util.h"
-#include "gsmamr_dec.h"
+#include "interf_dec.h"
 
 #define PORT                38858
 #define MAX_PACKET_SIZE     1024
 #define PCM_FRAME_SIZE      160
 
-void *g_decoder;
-
+/* Deprecated */
+#if 0
 void amr_decode(int16_t *samples, void *payload, int length)
 {
     unsigned char *bytes = (unsigned char *)payload;
-    //enum Frame_Type_3GPP type;
-
-    //type = (Frame_Type_3GPP)(byte[0] >> 3);
 
     length -= 2;
 
@@ -57,8 +54,9 @@ void amr_decode(int16_t *samples, void *payload, int length)
         E("decode error");
     }
 }
+#endif
 
-void echo(int fd) {
+void echo(int fd, const void *cookie) {
 
     int sz;
     char buf[MAX_PACKET_SIZE];
@@ -71,13 +69,13 @@ void echo(int fd) {
             MAX_PACKET_SIZE, 0,
             (struct sockaddr *)&from, &from_len);
 
-    // get current timestamp
+    /* get current timestamp */
     gettimeofday(&now, 0);
 
     if (sz == 32) {
 
-        // decode amr-nb to pcm 16
-        amr_decode(samples, buf, sz);
+        /* decode amr-nb to pcm 16 */
+        Decoder_Interface_Decode(cookie, buf, samples, 0);
 
         D("[%d.%d] forward %d bytes data", now.tv_sec, now.tv_usec, sz);
 
@@ -91,24 +89,29 @@ int main(int argc, char* argv[])
 {
     int s;
     fd_set rfds;
+    void *st;
 
-    // create a udp server socket
+    /* Create a udp server socket. */
     s = local_datagram(PORT);
 
-    if (s < 0 || GSMInitDecode(&g_decoder, "RTP")) {
+    /* Init codec. */
+    st = Decoder_Interface_init();
+
+    if (s < 0 || !st) {
         E("Init error, %s", strerror(errno));
     }
 
-    // make socket non-blocking
+    /* make socket non-blocking */
     fcntl(s, F_SETFL, O_NONBLOCK);
 
+    /* Main loop */
     for (;;) {
         FD_ZERO(&rfds);
         FD_SET(s, &rfds);
 
         if (select(s + 1, &rfds, 0, 0, 0) > 0) {
             if (FD_ISSET(s, &rfds))
-                echo(s);
+                echo(s, st);
         }
     }
 }

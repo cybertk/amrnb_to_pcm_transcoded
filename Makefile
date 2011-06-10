@@ -1,3 +1,9 @@
-CFLAGS += -I./amrnb/dec/src/ -I./amrnb/common/include/ -I./amrnb/dec/include/ -I./amrnb/common/
+CODEC_DIR := ./amrnb-7.0.0.2
 
-echo: echo.o util.o
+CFLAGS += -I$(CODEC_DIR)
+OBJECTS := echo.o util.o $(CODEC_DIR)/sp_dec.o $(CODEC_DIR)/interf_dec.o 
+
+echo: $(OBJECTS)
+
+clean:
+	rm $(OBJECTS) echo
