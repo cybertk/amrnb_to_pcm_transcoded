@@ -1,1 +1,8 @@
-http://ftp.penguin.cz/pub/users/utx/amr/amrnb-7.0.0.2.tar.bz2
+Convert the AMR-NB frames to PCM on server side.
+
+Simple FLow:
+1/, Receive AMR-NB frames.
+2/, Decode frames to PCM16-LE.
+3/, Send PCM data back.
+
+The AMR codec we used can be downloaded from http://ftp.penguin.cz/pub/users/utx/amr/amrnb-7.0.0.2.tar.bz2
