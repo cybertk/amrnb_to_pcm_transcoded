@@ -38,9 +38,9 @@
 #include "util.h"
 #include "interf_dec.h"
 
-#define PORT                38858
+#define DEFAULT_PORT                38859
 #define MAX_PACKET_SIZE     1024
-#define PCM_FRAME_SIZE      160
+#define PCM_FRAME_SIZE      1600
 
 /* Deprecated */
 #if 0
@@ -72,14 +72,23 @@ void echo(int fd, const void *cookie) {
     /* get current timestamp */
     gettimeofday(&now, 0);
 
-    if (sz == 32) {
+    /* Both RTP or RAW AMR packet are allowed */
+    if (sz == 32 || sz == 45) {
 
+        D("sz %d", sz);
         /* decode amr-nb to pcm 16 */
-        Decoder_Interface_Decode(cookie, buf, samples, 0);
+        if (sz == 45) {
+            memcpy(samples, buf, 12);
+            Decoder_Interface_Decode(cookie, &buf[13], &samples[12], 0);
+            sz = 332;
+        } else {
+            Decoder_Interface_Decode(cookie, buf, samples, 0);
+            sz = 320;
+        }
 
         D("[%d.%d] forward %d bytes data", now.tv_sec, now.tv_usec, sz);
 
-        sendto(fd, samples, PCM_FRAME_SIZE, 0, (struct sockaddr *)&from, from_len);
+        sendto(fd, samples, sz, 0, (struct sockaddr *)&from, from_len);
     } else if (sz > 0) {
         D("[%d.%d] ignore malformed packet", now.tv_sec, now.tv_usec);
     }
@@ -90,9 +99,22 @@ int main(int argc, char* argv[])
     int s;
     fd_set rfds;
     void *st;
+    int port;
+
+    if (argc > 1) {
+        port = atoi(argv[1]);
+
+        if (port > 65535 || port < 1) {
+            printf("Usage: transd [port]\n");
+            exit(0);
+        }
+
+    } else {
+        port = DEFAULT_PORT;
+    }
 
     /* Create a udp server socket. */
-    s = local_datagram(PORT);
+    s = local_datagram(port);
 
     /* Init codec. */
     st = Decoder_Interface_init();
